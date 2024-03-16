@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net"
+
+	"github.com/codecrafters-io/http-server-starter-go/app/http"
 )
 
 func main() {
@@ -17,4 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer conn.Close()
+
+	res := http.NewResponse(conn)
+	res.Send()
 }
