@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"strings"
@@ -15,23 +16,28 @@ func main() {
 	}
 	defer l.Close()
 
-	conn, err := l.Accept()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	req, err := http.NewRequest(conn)
-	if err != nil {
-		log.Fatal(err)
+		go func(c net.Conn) {
+			req, err := http.NewRequest(c)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			res := http.NewResponse(c)
+			if s, ok := strings.CutPrefix(req.Path, "/echo/"); ok {
+				res.SetBody("text/plain", []byte(s))
+			} else if req.Path == "/user-agent" {
+				res.SetBody("text/plain", []byte(req.Headers["User-Agent"]))
+			} else if req.Path != "/" {
+				res.Status = 404
+			}
+			res.Send()
+			c.Close()
+		}(conn)
 	}
-	res := http.NewResponse(conn)
-	if s, ok := strings.CutPrefix(req.Path, "/echo/"); ok {
-		res.SetBody("text/plain", []byte(s))
-	} else if req.Path == "/user-agent" {
-		res.SetBody("text/plain", []byte(req.Headers["User-Agent"]))
-	} else if req.Path != "/" {
-		res.Status = 404
-	}
-	res.Send()
 }
