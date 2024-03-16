@@ -15,14 +15,15 @@ const (
 
 // Request represents an HTTP request message.
 type Request struct {
-	Method  string // HTTP method
-	Path    string // request path
-	Version string // HTTP version
+	Method  string            // HTTP method
+	Path    string            // request path
+	Version string            // HTTP version
+	Headers map[string]string // request headers
 }
 
 // parseRequest parses the request message from the client connection.
 func parseRequest(c net.Conn) (Request, error) {
-	r := Request{}
+	r := Request{Headers: make(map[string]string)}
 	// Wrap client connection in a bufio.Reader.
 	rd := bufio.NewReader(c)
 	// Parse request line.
@@ -34,6 +35,19 @@ func parseRequest(c net.Conn) (Request, error) {
 	r.Method = lineFields[0]
 	r.Path = lineFields[1]
 	r.Version = lineFields[2]
+	// Parse request headers.
+	for {
+		line, err = rd.ReadString('\n')
+		if err != nil {
+			return r, err
+		}
+		if line == "\r\n" {
+			break
+		}
+		if key, value, ok := strings.Cut(line, ": "); ok {
+			r.Headers[key] = strings.TrimSpace(value)
+		}
+	}
 	return r, nil
 }
 

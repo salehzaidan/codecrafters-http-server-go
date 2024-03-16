@@ -28,6 +28,8 @@ func main() {
 	res := http.NewResponse(conn)
 	if s, ok := strings.CutPrefix(req.Path, "/echo/"); ok {
 		res.SetBody("text/plain", []byte(s))
+	} else if req.Path == "/user-agent" {
+		res.SetBody("text/plain", []byte(req.Headers["User-Agent"]))
 	} else if req.Path != "/" {
 		res.Status = 404
 	}
