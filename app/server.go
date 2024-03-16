@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"strings"
 
 	"github.com/codecrafters-io/http-server-starter-go/app/http"
 )
@@ -25,7 +26,9 @@ func main() {
 		log.Fatal(err)
 	}
 	res := http.NewResponse(conn)
-	if req.Path != "/" {
+	if s, ok := strings.CutPrefix(req.Path, "/echo/"); ok {
+		res.SetBody("text/plain", []byte(s))
+	} else if req.Path != "/" {
 		res.Status = 404
 	}
 	res.Send()

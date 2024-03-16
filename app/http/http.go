@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -52,18 +53,41 @@ func StatusText(status uint16) string {
 
 // Response represents an HTTP response message.
 type Response struct {
-	c       net.Conn // client connection
-	Status  uint16   // status code
-	Version string   // HTTP version
+	c       net.Conn          // client connection
+	Status  uint16            // status code
+	Version string            // HTTP version
+	Headers map[string]string // response headers
+	Body    []byte            // response body
 }
 
 // NewResponse initializes a new HTTP response. The response version is HTTP/1.1 and
 // the status code is 200.
 func NewResponse(c net.Conn) Response {
-	return Response{c: c, Status: 200, Version: "HTTP/1.1"}
+	return Response{
+		c:       c,
+		Status:  200,
+		Version: "HTTP/1.1",
+		Headers: make(map[string]string),
+	}
+}
+
+// SetBody sets the response body and sets the corresponding Content-Type and
+// Content-Length header.
+func (r *Response) SetBody(contentType string, body []byte) {
+	r.Headers["Content-Type"] = contentType
+	r.Headers["Content-Length"] = strconv.Itoa(len(body))
+	r.Body = body
 }
 
 // Send sends the response to the client.
-func (r Response) Send() {
-	r.c.Write([]byte(fmt.Sprintf("%s %d %s\r\n\r\n", r.Version, r.Status, StatusText(r.Status))))
+func (r *Response) Send() {
+	b := []byte(fmt.Sprintf("%s %d %s\r\n", r.Version, r.Status, StatusText(r.Status)))
+	for key, value := range r.Headers {
+		b = append(b, fmt.Sprintf("%s: %s\r\n", key, value)...)
+	}
+	b = append(b, "\r\n"...)
+	if r.Body != nil {
+		b = append(b, r.Body...)
+	}
+	r.c.Write(b)
 }
