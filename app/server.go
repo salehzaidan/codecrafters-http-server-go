@@ -41,24 +41,37 @@ func main() {
 				return
 			}
 			res := http.NewResponse(c)
-			if s, ok := strings.CutPrefix(req.Path, "/echo/"); ok {
-				res.SetBody("text/plain", []byte(s))
-			} else if req.Path == "/user-agent" {
-				res.SetBody("text/plain", []byte(req.Headers["User-Agent"]))
-			} else if name, ok := strings.CutPrefix(req.Path, "/files/"); ok {
-				content, err := os.ReadFile(strings.Join([]string{*dir, name}, string(os.PathSeparator)))
-				if err != nil {
-					if errors.Is(err, fs.ErrNotExist) {
-						res.Status = 404
+			switch req.Method {
+			case http.MethodGet:
+				if s, ok := strings.CutPrefix(req.Path, "/echo/"); ok {
+					res.SetBody("text/plain", []byte(s))
+				} else if req.Path == "/user-agent" {
+					res.SetBody("text/plain", []byte(req.Headers["User-Agent"]))
+				} else if name, ok := strings.CutPrefix(req.Path, "/files/"); ok {
+					path := strings.Join([]string{*dir, name}, string(os.PathSeparator))
+					content, err := os.ReadFile(path)
+					if err != nil {
+						if errors.Is(err, fs.ErrNotExist) {
+							res.Status = 404
+						} else {
+							fmt.Println(err)
+							return
+						}
 					} else {
+						res.SetBody("application/octet-stream", content)
+					}
+				} else if req.Path != "/" {
+					res.Status = 404
+				}
+			case http.MethodPost:
+				if name, ok := strings.CutPrefix(req.Path, "/files/"); ok {
+					path := strings.Join([]string{*dir, name}, string(os.PathSeparator))
+					if err := os.WriteFile(path, req.Body, 0666); err != nil {
 						fmt.Println(err)
 						return
 					}
-				} else {
-					res.SetBody("application/octet-stream", content)
+					res.Status = 201
 				}
-			} else if req.Path != "/" {
-				res.Status = 404
 			}
 			res.Send()
 		}(conn)

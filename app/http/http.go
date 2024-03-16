@@ -3,6 +3,7 @@ package http
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -10,7 +11,8 @@ import (
 
 // HTTP methods.
 const (
-	MethodGet = "GET"
+	MethodGet  = "GET"
+	MethodPost = "POST"
 )
 
 // Request represents an HTTP request message.
@@ -19,6 +21,7 @@ type Request struct {
 	Path    string            // request path
 	Version string            // HTTP version
 	Headers map[string]string // request headers
+	Body    []byte            // request body
 }
 
 // parseRequest parses the request message from the client connection.
@@ -47,6 +50,19 @@ func parseRequest(c net.Conn) (Request, error) {
 		if key, value, ok := strings.Cut(line, ": "); ok {
 			r.Headers[key] = strings.TrimSpace(value)
 		}
+	}
+	// Parse request body.
+	if v, ok := r.Headers["Content-Length"]; ok {
+		contentLen, err := strconv.Atoi(v)
+		if err != nil {
+			return r, err
+		}
+		body := make([]byte, contentLen)
+		_, err = io.ReadFull(rd, body)
+		if err != nil {
+			return r, err
+		}
+		r.Body = body
 	}
 	return r, nil
 }
