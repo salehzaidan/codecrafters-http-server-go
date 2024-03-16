@@ -20,6 +20,13 @@ func main() {
 	}
 	defer conn.Close()
 
+	req, err := http.NewRequest(conn)
+	if err != nil {
+		log.Fatal(err)
+	}
 	res := http.NewResponse(conn)
+	if req.Path != "/" {
+		res.Status = 404
+	}
 	res.Send()
 }
