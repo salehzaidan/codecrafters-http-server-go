@@ -73,7 +73,10 @@ func main() {
 					res.Status = 201
 				}
 			}
-			res.Send()
+			if err = res.Send(); err != nil {
+				fmt.Println(err)
+				return
+			}
 		}(conn)
 	}
 }

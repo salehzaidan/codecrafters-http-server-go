@@ -110,7 +110,7 @@ func (r *Response) SetBody(contentType string, body []byte) {
 }
 
 // Send sends the response to the client.
-func (r *Response) Send() {
+func (r *Response) Send() error {
 	b := []byte(fmt.Sprintf("%s %d %s\r\n", r.Version, r.Status, StatusText(r.Status)))
 	for key, value := range r.Headers {
 		b = append(b, fmt.Sprintf("%s: %s\r\n", key, value)...)
@@ -119,5 +119,9 @@ func (r *Response) Send() {
 	if r.Body != nil {
 		b = append(b, r.Body...)
 	}
-	r.c.Write(b)
+	_, err := r.c.Write(b)
+	if err != nil {
+		return err
+	}
+	return nil
 }
