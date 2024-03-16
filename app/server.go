@@ -1,15 +1,26 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/codecrafters-io/http-server-starter-go/app/http"
 )
 
 func main() {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	dir := flag.String("directory", wd, "file directory")
+	flag.Parse()
+
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		log.Fatal(err)
@@ -23,6 +34,7 @@ func main() {
 		}
 
 		go func(c net.Conn) {
+			defer c.Close()
 			req, err := http.NewRequest(c)
 			if err != nil {
 				fmt.Println(err)
@@ -33,11 +45,22 @@ func main() {
 				res.SetBody("text/plain", []byte(s))
 			} else if req.Path == "/user-agent" {
 				res.SetBody("text/plain", []byte(req.Headers["User-Agent"]))
+			} else if name, ok := strings.CutPrefix(req.Path, "/files/"); ok {
+				content, err := os.ReadFile(strings.Join([]string{*dir, name}, string(os.PathSeparator)))
+				if err != nil {
+					if errors.Is(err, fs.ErrNotExist) {
+						res.Status = 404
+					} else {
+						fmt.Println(err)
+						return
+					}
+				} else {
+					res.SetBody("application/octet-stream", content)
+				}
 			} else if req.Path != "/" {
 				res.Status = 404
 			}
 			res.Send()
-			c.Close()
 		}(conn)
 	}
 }
